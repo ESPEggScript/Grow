@@ -1,5 +1,4 @@
--- GXScript Hub — Updated UI with Gradient & Working Spawner
--- Paste into your executor (Synapse / Delta / etc.) and run
+-- GXScript Hub — Full Multi-Tab UI with Functional Spawner, Player Tools, Utilities, Credits
 
 -- cleanup
 pcall(function()
@@ -15,6 +14,9 @@ local RS = game:GetService("RunService")
 local Tween = game:GetService("TweenService")
 local StarterGui = game:GetService("StarterGui")
 local LP = Players.LocalPlayer
+local Char = LP.Character or LP.CharacterAdded:Wait()
+local HRP = Char:WaitForChild("HumanoidRootPart")
+local Hum = Char:WaitForChild("Humanoid")
 
 -- theme
 local ACCENT = Color3.fromRGB(35, 220, 120)
@@ -24,220 +26,291 @@ local BG_SOFT = Color3.fromRGB(24, 24, 24)
 local TEXT = Color3.fromRGB(235, 245, 235)
 
 -- helpers
-local function corner(inst, radius) 
-    local c = Instance.new("UICorner") 
-    c.CornerRadius = UDim.new(0, radius or 8) 
-    c.Parent = inst 
+local function corner(inst, radius) local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,radius or 8);c.Parent=inst end
+local function stroke(inst,th,col,tr) local s=Instance.new("UIStroke"); s.Thickness=th or 1; s.Color=col or Color3.fromRGB(60,60,60); s.Transparency=tr or 0.2; s.Parent=inst end
+local function notify(txt,dur)
+    pcall(function() StarterGui:SetCore("SendNotification",{Title="GXScript",Text=txt,Duration=dur or 3}) end)
 end
-
-local function stroke(inst, th, col, tr) 
-    local s = Instance.new("UIStroke") 
-    s.Thickness = th or 1
-    s.Color = col or Color3.fromRGB(60,60,60) 
-    s.Transparency = tr or 0.2 
-    s.Parent = inst 
-end
-
-local function notify(txt, dur)
-    pcall(function() StarterGui:SetCore("SendNotification", {Title="GXScript", Text=txt, Duration=dur or 3}) end)
+local function ApplyGradient(inst,color1,color2)
+    local grad=Instance.new("UIGradient")
+    grad.Color=ColorSequence.new{ColorSequenceKeypoint.new(0,color1),ColorSequenceKeypoint.new(1,color2)}
+    grad.Rotation=45
+    grad.Parent=inst
 end
 
 -- create ScreenGui
 local SG = Instance.new("ScreenGui")
-SG.Name = "GXScriptHub"
-SG.ResetOnSpawn = false
-SG.IgnoreGuiInset = true
-SG.Parent = game.CoreGui
+SG.Name="GXScriptHub"
+SG.ResetOnSpawn=false
+SG.IgnoreGuiInset=true
+SG.Parent=game.CoreGui
 
 -- DRAGGING util
 local function MakeDraggable(frame)
-    local dragging, dragInput, startPos, startMouse
+    local dragging,dragInput,startPos,startMouse
     frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            startMouse = input.Position
-            startPos = frame.Position
+        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            dragging=true
+            startMouse=input.Position
+            startPos=frame.Position
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+                if input.UserInputState==Enum.UserInputState.End then dragging=false end
             end)
         end
     end)
     frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+        if input.UserInputType==Enum.UserInputType.MouseMovement then dragInput=input end
     end)
     UIS.InputChanged:Connect(function(input)
-        if dragging and input == dragInput then
-            local delta = input.Position - startMouse
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        if dragging and input==dragInput then
+            local delta=input.Position-startMouse
+            frame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
         end
     end)
 end
 
-----------------------------------------------------------
--- Main UI
-----------------------------------------------------------
-local Main = Instance.new("Frame")
-Main.Name = "MainUI"
-Main.Size = UDim2.new(0, 760, 0, 420)
-Main.Position = UDim2.new(0.5, -380, 0.5, -210)
-Main.BackgroundColor3 = BG
-Main.BorderSizePixel = 0
-Main.Visible = false
-Main.Parent = SG
-corner(Main, 16)
-stroke(Main, 1.6, Color3.fromRGB(60,60,60), 0.36)
+-------------------------------
+-- OPEN/CLOSE BUTTON UI (draggable)
+-------------------------------
+local ToggleUI = Instance.new("Frame")
+ToggleUI.Size=UDim2.new(0,120,0,40)
+ToggleUI.Position=UDim2.new(0,20,0,150)
+ToggleUI.BackgroundColor3=ACCENT_DARK
+corner(ToggleUI,12)
+stroke(ToggleUI,1,ACCENT,0.22)
+ToggleUI.Parent=SG
+
+local ToggleBtn=Instance.new("TextButton",ToggleUI)
+ToggleBtn.Size=UDim2.new(1,0,1,0)
+ToggleBtn.BackgroundTransparency=1
+ToggleBtn.Text="GXScript Hub"
+ToggleBtn.Font=Enum.Font.GothamBold
+ToggleBtn.TextSize=16
+ToggleBtn.TextColor3=TEXT
+
+-------------------------------
+-- MAIN UI
+-------------------------------
+local Main=Instance.new("Frame")
+Main.Name="MainUI"
+Main.Size=UDim2.new(0,760,0,420)
+Main.Position=UDim2.new(0.5,-380,0.5,-210)
+Main.BackgroundColor3=BG
+Main.BorderSizePixel=0
+Main.Visible=false
+Main.Parent=SG
+corner(Main,16)
+stroke(Main,1.6,Color3.fromRGB(60,60,60),0.36)
 MakeDraggable(Main)
 
--- top bar
-local TopBar = Instance.new("Frame", Main)
-TopBar.Size = UDim2.new(1, 0, 0, 64)
-TopBar.BackgroundColor3 = BG_SOFT
-TopBar.Position = UDim2.new(0, 0, 0, 0)
-corner(TopBar, 16)
-stroke(TopBar, 1, Color3.fromRGB(80,80,80), 0.22)
-
-local HeaderLabel = Instance.new("TextLabel", TopBar)
-HeaderLabel.Size = UDim2.new(0, 300, 0, 44)
-HeaderLabel.Position = UDim2.new(0, 96, 0, 10)
-HeaderLabel.BackgroundTransparency = 1
-HeaderLabel.Font = Enum.Font.GothamBold
-HeaderLabel.TextSize = 20
-HeaderLabel.TextColor3 = TEXT
-HeaderLabel.Text = "GXScript Hub"
-
--- toggle button
-local ToggleBtn = Instance.new("TextButton", SG)
-ToggleBtn.Size = UDim2.new(0, 44, 0, 44)
-ToggleBtn.Position = UDim2.new(0, 16, 0, 16)
-ToggleBtn.BackgroundColor3 = ACCENT
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 22
-ToggleBtn.TextColor3 = Color3.fromRGB(10,10,10)
-ToggleBtn.Text = "☰"
-corner(ToggleBtn, 8)
-stroke(ToggleBtn, 1, Color3.fromRGB(100,140,100), 0.22)
-
 ToggleBtn.MouseButton1Click:Connect(function()
-    Main.Visible = not Main.Visible
+    Main.Visible=not Main.Visible
+end)
+MakeDraggable(ToggleUI)
+
+-- TopBar
+local TopBar=Instance.new("Frame",Main)
+TopBar.Size=UDim2.new(1,0,0,64)
+TopBar.BackgroundColor3=BG_SOFT
+corner(TopBar,16)
+stroke(TopBar,1,Color3.fromRGB(80,80,80),0.22)
+
+local HeaderLabel=Instance.new("TextLabel",TopBar)
+HeaderLabel.Size=UDim2.new(0,300,0,44)
+HeaderLabel.Position=UDim2.new(0,96,0,10)
+HeaderLabel.BackgroundTransparency=1
+HeaderLabel.Font=Enum.Font.GothamBold
+HeaderLabel.TextSize=20
+HeaderLabel.TextColor3=TEXT
+HeaderLabel.Text="GXScript Hub"
+
+local MinBtn=Instance.new("TextButton",TopBar)
+MinBtn.Size=UDim2.new(0,36,0,36)
+MinBtn.Position=UDim2.new(1,-56,0,12)
+MinBtn.BackgroundColor3=ACCENT_DARK
+MinBtn.Text="—"
+MinBtn.Font=Enum.Font.GothamBold
+MinBtn.TextColor3=TEXT
+corner(MinBtn,8)
+stroke(MinBtn,1,ACCENT,0.16)
+MinBtn.MouseButton1Click:Connect(function()
+    Main.Visible=false
 end)
 
-----------------------------------------------------------
 -- Tabs
-----------------------------------------------------------
-local TabBar = Instance.new("Frame", Main)
-TabBar.Size = UDim2.new(1, -40, 0, 48)
-TabBar.Position = UDim2.new(0, 20, 0, 80)
-TabBar.BackgroundTransparency = 1
+local TabBar=Instance.new("Frame",Main)
+TabBar.Size=UDim2.new(1,-40,0,48)
+TabBar.Position=UDim2.new(0,20,0,80)
+TabBar.BackgroundTransparency=1
 
-local Pages = Instance.new("Frame", Main)
-Pages.Size = UDim2.new(1, -40, 1, -156)
-Pages.Position = UDim2.new(0, 20, 0, 140)
-Pages.BackgroundColor3 = BG_SOFT
-corner(Pages, 12)
-stroke(Pages, 1, Color3.fromRGB(50,50,50), 0.18)
+local Pages=Instance.new("Frame",Main)
+Pages.Size=UDim2.new(1,-40,1,-156)
+Pages.Position=UDim2.new(0,20,0,140)
+Pages.BackgroundColor3=BG_SOFT
+corner(Pages,12)
+stroke(Pages,1,Color3.fromRGB(50,50,50),0.18)
 
 local function MakePage()
-    local p = Instance.new("Frame")
-    p.Size = UDim2.new(1, 0, 1, 0)
-    p.BackgroundTransparency = 1
-    p.Parent = Pages
-    p.Visible = false
+    local p=Instance.new("Frame")
+    p.Size=UDim2.new(1,0,1,0)
+    p.BackgroundTransparency=1
+    p.Parent=Pages
+    p.Visible=false
     return p
 end
 
-local Page1 = MakePage() -- Spawner
-local Page2 = MakePage() -- Player
-local Page3 = MakePage() -- Utilities
-local Page4 = MakePage() -- Credits
+local Page1,Page2,Page3,Page4=MakePage(),MakePage(),MakePage(),MakePage()
 
-local function MakeTabButton(text, idx)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 160, 0, 36)
-    btn.Position = UDim2.new(0, (idx-1)*(160+12), 0, 6)
-    btn.BackgroundColor3 = ACCENT_DARK
-    btn.Text = text
-    btn.Font = Enum.Font.GothamBold
-    btn.TextColor3 = TEXT
-    btn.TextSize = 14
-    btn.Parent = TabBar
-    corner(btn, 10)
-    stroke(btn, 1, Color3.fromRGB(80,120,80), 0.18)
-    btn.MouseEnter:Connect(function() Tween:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = ACCENT}):Play() end)
-    btn.MouseLeave:Connect(function() if not btn:GetAttribute("active") then Tween:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = ACCENT_DARK}):Play() end end)
+local function MakeTabButton(text,idx)
+    local btn=Instance.new("TextButton")
+    btn.Size=UDim2.new(0,160,0,36)
+    btn.Position=UDim2.new(0,(idx-1)*(160+12),0,6)
+    btn.BackgroundColor3=ACCENT_DARK
+    btn.Text=text
+    btn.Font=Enum.Font.GothamBold
+    btn.TextColor3=TEXT
+    btn.TextSize=14
+    btn.Parent=TabBar
+    corner(btn,10)
+    stroke(btn,1,Color3.fromRGB(80,120,80),0.18)
+    ApplyGradient(btn,Color3.fromRGB(0,255,120),Color3.fromRGB(0,180,220))
+    btn.MouseEnter:Connect(function() Tween:Create(btn,TweenInfo.new(0.12),{BackgroundColor3=ACCENT}):Play() end)
+    btn.MouseLeave:Connect(function() if not btn:GetAttribute("active") then Tween:Create(btn,TweenInfo.new(0.12),{BackgroundColor3=ACCENT_DARK}):Play() end end)
     return btn
 end
 
-local TB1 = MakeTabButton("Spawner", 1)
-local TB2 = MakeTabButton("Player", 2)
-local TB3 = MakeTabButton("Utilities", 3)
-local TB4 = MakeTabButton("Credits", 4)
-
-local function ShowPage(page, tab)
-    for _,c in pairs(Pages:GetChildren()) do if c:IsA("Frame") then c.Visible = false end end
-    for _,b in pairs(TabBar:GetChildren()) do if b:IsA("TextButton") then b:SetAttribute("active", false); Tween:Create(b, TweenInfo.new(0.12), {BackgroundColor3 = ACCENT_DARK}):Play() end end
-    page.Visible = true
-    tab:SetAttribute("active", true)
-    Tween:Create(tab, TweenInfo.new(0.12), {BackgroundColor3 = ACCENT}):Play()
+local TB1,TB2,TB3,TB4=MakeTabButton("Spawner",1),MakeTabButton("Player",2),MakeTabButton("Utilities",3),MakeTabButton("Credits",4)
+local function ShowPage(page,tab)
+    for _,c in pairs(Pages:GetChildren()) do if c:IsA("Frame") then c.Visible=false end end
+    for _,b in pairs(TabBar:GetChildren()) do if b:IsA("TextButton") then b:SetAttribute("active",false); Tween:Create(b,TweenInfo.new(0.12),{BackgroundColor3=ACCENT_DARK}):Play() end end
+    page.Visible=true
+    tab:SetAttribute("active",true)
+    Tween:Create(tab,TweenInfo.new(0.12),{BackgroundColor3=ACCENT}):Play()
 end
+ShowPage(Page1,TB1)
+TB1.MouseButton1Click:Connect(function() ShowPage(Page1,TB1) end)
+TB2.MouseButton1Click:Connect(function() ShowPage(Page2,TB2) end)
+TB3.MouseButton1Click:Connect(function() ShowPage(Page3,TB3) end)
+TB4.MouseButton1Click:Connect(function() ShowPage(Page4,TB4) end)
 
-ShowPage(Page1, TB1)
-TB1.MouseButton1Click:Connect(function() ShowPage(Page1, TB1) end)
-TB2.MouseButton1Click:Connect(function() ShowPage(Page2, TB2) end)
-TB3.MouseButton1Click:Connect(function() ShowPage(Page3, TB3) end)
-TB4.MouseButton1Click:Connect(function() ShowPage(Page4, TB4) end)
+-------------------------------
+-- PAGE 1: Spawner
+-------------------------------
+local SpawnerButton=Instance.new("TextButton",Page1)
+SpawnerButton.Size=UDim2.new(0,200,0,36)
+SpawnerButton.Position=UDim2.new(0,16,0,16)
+SpawnerButton.BackgroundColor3=ACCENT_DARK
+SpawnerButton.Text="Open Spawner"
+SpawnerButton.Font=Enum.Font.GothamBold
+SpawnerButton.TextColor3=TEXT
+SpawnerButton.TextSize=14
+corner(SpawnerButton,8)
+stroke(SpawnerButton,1,ACCENT,0.18)
+ApplyGradient(SpawnerButton,Color3.fromRGB(0,255,120),Color3.fromRGB(0,180,220))
 
-----------------------------------------------------------
--- Page1: Spawner
-----------------------------------------------------------
-local spawnButton = Instance.new("TextButton", Page1)
-spawnButton.Size = UDim2.new(0, 260, 0, 44)
-spawnButton.Position = UDim2.new(0, 16, 0, 20)
-spawnButton.BackgroundColor3 = ACCENT_DARK
-spawnButton.Font = Enum.Font.GothamBold
-spawnButton.TextSize = 16
-spawnButton.Text = "Open Spawner (Lab)"
-spawnButton.TextColor3 = TEXT
-corner(spawnButton, 10)
-stroke(spawnButton, 1, Color3.fromRGB(90,120,90), 0.18)
-
-spawnButton.MouseEnter:Connect(function() Tween:Create(spawnButton, TweenInfo.new(0.12), {BackgroundColor3 = ACCENT}):Play() end)
-spawnButton.MouseLeave:Connect(function() Tween:Create(spawnButton, TweenInfo.new(0.12), {BackgroundColor3 = ACCENT_DARK}):Play() end)
-
-spawnButton.MouseButton1Click:Connect(function()
-    local ok, err = pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/ESPEggScript/Grow/refs/heads/main/A%20script"))()
+SpawnerButton.MouseButton1Click:Connect(function()
+    local ok,err=pcall(function()
+        local Spawner = loadstring(game:HttpGet("https://gitlab.com/darkiedarkie/dark/-/raw/main/Spawner.lua"))()
+        Spawner.Load()
     end)
-    if ok then notify("Spawner opened.") else notify("Spawner error: "..tostring(err),5) end
+    if ok then notify("Spawner loaded.") else notify("Error: "..tostring(err),5) end
 end)
 
-----------------------------------------------------------
--- Page4: Credits
-----------------------------------------------------------
-local cred = Instance.new("TextLabel", Page4)
-cred.Size = UDim2.new(1, -32, 1, -32)
-cred.Position = UDim2.new(0, 16, 0, 16)
-cred.BackgroundTransparency = 1
-cred.Font = Enum.Font.Gotham
-cred.TextSize = 14
-cred.TextColor3 = Color3.fromRGB(200, 230, 200)
-cred.TextWrapped = true
-cred.Text = "GXScript Hub\n\nUI & Tools\nMade by -GXScript"asePart") then d.Material = Enum.Material.SmoothPlastic; d.Reflectance = 0
-        elseif d:IsA("Decal") or d:IsA("Texture") then d.Transparency = 1
-        elseif d:IsA("ParticleEmitter") or d:IsA("Trail") then d.Enabled = false
-        elseif d:IsA("PointLight") or d:IsA("SpotLight") or d:IsA("SurfaceLight") then d.Enabled = false end
+-------------------------------
+-- PAGE 2: Player Tools
+-------------------------------
+local WalkSlider=Instance.new("TextButton",Page2)
+WalkSlider.Size=UDim2.new(0,200,0,36)
+WalkSlider.Position=UDim2.new(0,16,0,16)
+WalkSlider.BackgroundColor3=ACCENT_DARK
+WalkSlider.Text="Increase Walkspeed"
+WalkSlider.Font=Enum.Font.GothamBold
+WalkSlider.TextColor3=TEXT
+WalkSlider.TextSize=14
+corner(WalkSlider,8)
+stroke(WalkSlider,1,ACCENT,0.18)
+ApplyGradient(WalkSlider,Color3.fromRGB(0,255,120),Color3.fromRGB(0,180,220))
+
+WalkSlider.MouseButton1Click:Connect(function()
+    Hum.WalkSpeed=200
+    notify("WalkSpeed set to 200")
+end)
+
+local JumpButton=Instance.new("TextButton",Page2)
+JumpButton.Size=UDim2.new(0,200,0,36)
+JumpButton.Position=UDim2.new(0,16,0,64)
+JumpButton.BackgroundColor3=ACCENT_DARK
+JumpButton.Text="Increase JumpPower"
+JumpButton.Font=Enum.Font.GothamBold
+JumpButton.TextColor3=TEXT
+JumpButton.TextSize=14
+corner(JumpButton,8)
+stroke(JumpButton,1,ACCENT,0.18)
+ApplyGradient(JumpButton,Color3.fromRGB(0,255,120),Color3.fromRGB(0,180,220))
+
+JumpButton.MouseButton1Click:Connect(function()
+    Hum.JumpPower=200
+    notify("JumpPower set to 200")
+end)
+
+-------------------------------
+-- PAGE 3: Utilities
+-------------------------------
+local FPSButton=Instance.new("TextButton",Page3)
+FPSButton.Size=UDim2.new(0,200,0,36)
+FPSButton.Position=UDim2.new(0,16,0,16)
+FPSButton.BackgroundColor3=ACCENT_DARK
+FPSButton.Text="FPS Boost"
+FPSButton.Font=Enum.Font.GothamBold
+FPSButton.TextColor3=TEXT
+FPSButton.TextSize=14
+corner(FPSButton,8)
+stroke(FPSButton,1,ACCENT,0.18)
+ApplyGradient(FPSButton,Color3.fromRGB(0,255,120),Color3.fromRGB(0,180,220))
+
+FPSButton.MouseButton1Click:Connect(function()
+    for i,v in pairs(game:GetService("Lighting"):GetChildren()) do
+        if v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("BloomEffect") then v.Enabled=false end
     end
-    notify("FPS Boost enabled")
+    workspace.DescendantAdded:Connect(function(d)
+        if d:IsA("ParticleEmitter") then d:Destroy() end
+    end)
+    notify("FPS Boost Applied")
 end)
 
-----------------------------------------------------------------
+local NoclipButton=Instance.new("TextButton",Page3)
+NoclipButton.Size=UDim2.new(0,200,0,36)
+NoclipButton.Position=UDim2.new(0,16,0,64)
+NoclipButton.BackgroundColor3=ACCENT_DARK
+NoclipButton.Text="Noclip (Toggle)"
+NoclipButton.Font=Enum.Font.GothamBold
+NoclipButton.TextColor3=TEXT
+NoclipButton.TextSize=14
+corner(NoclipButton,8)
+stroke(NoclipButton,1,ACCENT,0.18)
+ApplyGradient(NoclipButton,Color3.fromRGB(0,255,120),Color3.fromRGB(0,180,220))
+
+local NoclipActive=false
+NoclipButton.MouseButton1Click:Connect(function()
+    NoclipActive=not NoclipActive
+    if NoclipActive then
+        Hum:ChangeState(Enum.HumanoidStateType.Physics)
+        notify("Noclip Enabled")
+    else
+        Hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+        notify("Noclip Disabled")
+    end
+end)
+
+-------------------------------
 -- PAGE 4: Credits
-----------------------------------------------------------------
-local cred = Instance.new("TextLabel", Page4)
-cred.Size = UDim2.new(1, -32, 1, -32)
-cred.Position = UDim2.new(0,16,0,16)
-cred.BackgroundTransparency = 1
-cred.Font = Enum.Font.Gotham
-cred.TextSize = 14
-cred.TextColor3 = ACCENT
-cred.TextWrapped = true
-cred.Text = "GXScript Hub\n\nUI & Tools\nMade by -Panda"
+-------------------------------
+local cred=Instance.new("TextLabel",Page4)
+cred.Size=UDim2.new(1,-32,1,-32)
+cred.Position=UDim2.new(0,16,0,16)
+cred.BackgroundTransparency=1
+cred.Font=Enum.Font.Gotham
+cred.TextSize=14
+cred.TextColor3=Color3.fromRGB(200,230,200)
+cred.TextWrapped=true
+cred.Text="GXScript Hub\n\nUI & Tools\n\nMade by -GXScript"
